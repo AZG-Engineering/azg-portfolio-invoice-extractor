@@ -1,0 +1,7 @@
+# Needed only to regenerate the sample PDFs, run the tests and rebuild the screenshots.
+-r requirements.txt
+reportlab==5.0.1
+pytest==9.1.1
+# Screenshots only (Windows with Excel installed):
+pywin32==312
+PyMuPDF==1.28.2

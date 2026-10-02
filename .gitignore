@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.pytest_tmp/
+
+# Secrets (none are used; kept out as a rule)
+.env
+*.env
+credentials*
+token*
+
+# Regenerated on every run
+output/
+
+# Working files and logs
+screenshots/_work/
+*.log
+
+# Excel lock files
+~$*

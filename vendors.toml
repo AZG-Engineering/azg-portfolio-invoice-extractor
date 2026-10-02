@@ -1,0 +1,39 @@
+# Vendor layouts the extractor knows how to read. One [[vendor]] block per layout.
+#
+# name            what goes in the Vendor column
+# match           text that only this vendor's invoices contain (any one is enough)
+# invoice_number  pattern with ONE pair of brackets around the value to keep
+# invoice_date    same, for the invoice date as printed
+# date_format     how that date is written: %m/%d/%Y = 08/03/2026, %d %b %Y = 3 Aug 2026,
+#                 %Y-%m-%d = 2026-08-03
+# total           same, for the amount due (digits, commas and the decimal point only)
+#
+# The extractor never guesses. A field is filled only when its pattern finds exactly
+# one value; otherwise the field is left blank and the row is flagged for review.
+# Patterns are regular expressions. Keep them anchored on the label printed next to
+# the value ("TOTAL DUE", not just "TOTAL") so "Subtotal" or "Due Date" can't match.
+
+[[vendor]]
+name = "Northwind Supply Co."
+match = ["Northwind Supply"]
+invoice_number = 'Invoice No:\s*(NW-\d{5})\b'
+invoice_date = 'Invoice Date:\s*(\d{2}/\d{2}/\d{4})'
+date_format = "%m/%d/%Y"
+total = 'TOTAL DUE\s*\$([\d,]+\.\d{2})'
+
+[[vendor]]
+name = "Contoso Freight"
+match = ["CONTOSO FREIGHT"]
+invoice_number = 'Invoice #\s*(CF-\d{4}-\d{4})\b'
+invoice_date = '\bDate\s+(\d{1,2} [A-Z][a-z]{2} \d{4})'
+date_format = "%d %b %Y"
+total = 'Amount Due\s*USD\s*([\d,]+\.\d{2})'
+
+[[vendor]]
+name = "Fabrikam Office Goods"
+match = ["Fabrikam Office Goods"]
+# The labels sit on one line and the values on the line below.
+invoice_number = 'Invoice number Date of issue Customer ref\s+(FOG-\d{5})\b'
+invoice_date = '(?m)^FOG-\d{5}\s+(\d{4}-\d{2}-\d{2})\b'
+date_format = "%Y-%m-%d"
+total = 'Grand Total\s*\$([\d,]+\.\d{2})'
