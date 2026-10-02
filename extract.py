@@ -26,8 +26,12 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 AUTHOR = "AZG Engineering"
 HEADERS = ("Vendor", "Invoice Date", "Invoice Number", "Total", "Source File", "Review")
 COLUMN_WIDTHS = (26, 14, 18, 13, 24, 46)
-REVIEW_FILL = "FFF2CC"
-HEADER_FILL = "1F3A5F"
+# Colours from the AZG build style guide.
+HEADER_FILL = "1F3A5F"  # navy header band, white text
+REVIEW_FILL = "FDE7B0"  # amber: this row needs a person
+REVIEW_TEXT = "7A4A00"
+TEXT = "1F2937"
+RULE = "E2E8F0"  # the one thin line under each row
 
 NO_TEXT = "No text layer (scanned image): enter by hand"
 VENDOR_KEYS = ("name", "match", "invoice_number", "invoice_date", "date_format", "total")
@@ -150,17 +154,16 @@ def write_xlsx(rows: list[Row], out_path: Path) -> None:
     workbook.properties.lastModifiedBy = AUTHOR
     workbook.properties.title = "Extracted invoices"
 
-    edge = Side(style="thin", color="C5CCD3")
-    border = Border(left=edge, right=edge, top=edge, bottom=edge)
+    # No boxes: one thin rule under each row, and colour only where it means something.
+    border = Border(bottom=Side(style="thin", color=RULE))
     review_fill = PatternFill("solid", start_color=REVIEW_FILL)
 
     sheet.append(HEADERS)
     for cell in sheet[1]:
-        cell.font = Font(bold=True, color="FFFFFF")
+        cell.font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
         cell.fill = PatternFill("solid", start_color=HEADER_FILL)
         cell.alignment = Alignment(vertical="center")
-        cell.border = border
-    sheet.row_dimensions[1].height = 24
+    sheet.row_dimensions[1].height = 30
 
     for row in rows:
         sheet.append((
@@ -177,11 +180,12 @@ def write_xlsx(rows: list[Row], out_path: Path) -> None:
         cells[5].alignment = Alignment(wrap_text=True, vertical="center")
         for cell in cells:
             cell.border = border
+            cell.font = Font(name="Calibri", size=11, color=TEXT if row.ok else REVIEW_TEXT)
             if cell.alignment.vertical is None:
                 cell.alignment = Alignment(vertical="center")
             if not row.ok:
                 cell.fill = review_fill
-        sheet.row_dimensions[sheet.max_row].height = 22
+        sheet.row_dimensions[sheet.max_row].height = 26
 
     for letter, width in zip("ABCDEF", COLUMN_WIDTHS):
         sheet.column_dimensions[letter].width = width
