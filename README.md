@@ -24,6 +24,7 @@ Built by AZG Engineering.
 | `tests\test_extract.py` | The tests: expected values for every sample, both problem files flagged. |
 | `tools\make_screenshots.py` | Rebuilds the three images in `screenshots\`. |
 | `tools\check_metadata.py` | Shows the author fields of every spreadsheet, PDF and image here. |
+| `tools\showcase.py`, `tools\fonts\` | The AZG showcase kit (the screenshot template) and the Inter font it uses. |
 | `screenshots\` | Three 1600x1200 PNG images of the demo. |
 | `output\` | Where the spreadsheet is written. Not kept in git; it is rebuilt on every run. |
 
@@ -95,7 +96,10 @@ and run the tests.
 **Add a column.** Add the field to `Row`, read it in `parse_invoice`, and add it to
 `HEADERS`, `COLUMN_WIDTHS` and the row written in `write_xlsx`.
 
-**Change the look of the spreadsheet** (colours, widths, number formats): `write_xlsx`.
+**Change the look of the spreadsheet** (widths, number formats, row heights):
+`write_xlsx`. The colours are the constants at the top of `extract.py` and come from
+the AZG build style guide: a navy header band, one thin rule under each row, and
+amber with dark-amber text for rows that need review.
 
 **Change the sample invoices:** edit `INVOICES` in `generate_samples.py`, then
 
@@ -116,6 +120,12 @@ and run the tests.
 installed: Excel prints the spreadsheet to PDF in the background, and nothing is saved
 back. The images are composites, not screen grabs, so no window, account name or file
 path appears in them.
+
+The frame (navy strip, caption, white card, footer) comes from the AZG showcase kit,
+`tools\showcase.py`, which follows the AZG build style guide. Don't edit that copy:
+change the kit in `Products\showcase-kit\` and sync it. A 400 px wide copy of each
+image is written to `screenshots\_work\` to check that the headline still reads at
+thumbnail size.
 
 ## Dependencies and licences
 
@@ -155,4 +165,11 @@ PyMuPDF is the one to know about. It is used only by `tools\make_screenshots.py`
 this tool is ever sold or handed over, leave PyMuPDF out or swap the screenshot step
 to pypdfium2, which is already installed.
 
-The screenshots use the Segoe UI and Consolas fonts that ship with Windows.
+Kept in this repository, for the screenshots only:
+
+| Item | Version | Licence | Where |
+| --- | --- | --- | --- |
+| Inter font (Regular, SemiBold) | 4.1 | SIL Open Font License 1.1 | `tools\fonts\`, with the licence text in `tools\fonts\OFL.txt` |
+| AZG showcase kit | 1.0.0 | AZG Engineering's own | `tools\showcase.py`, an exact copy of `Products\showcase-kit\showcase.py` |
+
+No system font is drawn into the images.
