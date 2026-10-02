@@ -1,13 +1,16 @@
-"""Rebuild the three portfolio screenshots in screenshots/ (PNG, exactly 1600x1200).
+"""Rebuild the three showcase images in screenshots/ (PNG, exactly 1600x1200).
 
 Usage (Windows, with Excel installed):
     python tools\\make_screenshots.py
 
-The images are composites, not screen grabs, so no window, account name or file
-path can appear in them:
+The images are composites on the AZG showcase template (tools\\showcase.py), not
+screen grabs, so no window, account name or file path can appear in them:
   - invoice pages are drawn from the sample PDFs with PyMuPDF;
   - spreadsheet content is printed to PDF by Excel itself, then drawn with PyMuPDF;
-  - the terminal picture is the extractor's real output, drawn as text.
+  - the run summary is the extractor's real output, drawn as text.
+
+A 400 px wide copy of each image is written to screenshots\\_work\\ so the
+headline can be checked at thumbnail size.
 """
 
 from __future__ import annotations
@@ -17,61 +20,19 @@ import sys
 from pathlib import Path
 
 import pymupdf
-from PIL import Image, ImageChops, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw
+
+import showcase as kit  # tools\showcase.py: a copy of the AZG showcase kit
 
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLES = ROOT / "samples"
 OUTPUT_XLSX = ROOT / "output" / "invoices.xlsx"
 SHOTS = ROOT / "screenshots"
 WORK = SHOTS / "_work"
-FONTS = Path(r"C:\Windows\Fonts")
-
-WIDTH, HEIGHT = 1600, 1200
-STRIP_HEIGHT = 104
-MARGIN = 40
-CONTENT_BOX = (MARGIN, STRIP_HEIGHT + 28, WIDTH - MARGIN, HEIGHT - 56)
-BACKGROUND = "#F4F6F8"
-STRIP = "#1F3A5F"
-ACCENT = (245, 166, 35)
-FOOTNOTE = "Demo \u00b7 sample data"
 
 FEATURED = "contoso-0331.pdf"
 FEATURED_FIELDS = ("CONTOSO FREIGHT", "CF-2026-0331", "27 Aug 2026", "USD 2,485.30")
 THUMBNAILS = ("contoso-0318.pdf", "fabrikam-00771.pdf", "northwind-10528.pdf", "scan-0007.pdf")
-
-
-def font(file_name: str, size: int) -> ImageFont.FreeTypeFont:
-    return ImageFont.truetype(str(FONTS / file_name), size)
-
-
-def content_size() -> tuple[int, int]:
-    left, top, right, bottom = CONTENT_BOX
-    return right - left, bottom - top
-
-
-def fit(image: Image.Image, max_width: int, max_height: int) -> Image.Image:
-    scale = min(max_width / image.width, max_height / image.height)
-    size = (max(1, round(image.width * scale)), max(1, round(image.height * scale)))
-    return image.resize(size, Image.LANCZOS)
-
-
-def compose(content: Image.Image, caption: str, out_path: Path) -> None:
-    """Title strip on top, the content scaled to fill the rest, footnote bottom right."""
-    canvas = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
-    draw = ImageDraw.Draw(canvas)
-    draw.rectangle((0, 0, WIDTH, STRIP_HEIGHT), fill=STRIP)
-    draw.text((MARGIN + 8, STRIP_HEIGHT // 2), caption, font=font("seguisb.ttf", 50), fill="white", anchor="lm")
-
-    left, top, right, bottom = CONTENT_BOX
-    scaled = fit(content.convert("RGB"), right - left, bottom - top)
-    x = left + (right - left - scaled.width) // 2
-    y = top + (bottom - top - scaled.height) // 2
-    canvas.paste(scaled, (x, y))
-
-    draw.text((WIDTH - MARGIN, HEIGHT - 28), FOOTNOTE, font=font("segoeui.ttf", 22), fill="#8A94A0", anchor="rm")
-    assert canvas.size == (WIDTH, HEIGHT)
-    canvas.save(out_path, "PNG")
-    print(f"  {out_path.name}  {canvas.width}x{canvas.height}")
 
 
 def autocrop(image: Image.Image, pad: int = 6) -> Image.Image:
@@ -89,8 +50,7 @@ def pdf_page_image(pdf_path: Path, dpi: int = 200) -> Image.Image:
         return Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
 
 
-def excel_range_image(xlsx: Path, address: str, name: str, keep_rows: set[int] | None = None,
-                      headings: bool = False) -> Image.Image:
+def excel_range_image(xlsx: Path, address: str, name: str, keep_rows: set[int] | None = None) -> Image.Image:
     """Have Excel print a range to PDF, then draw that PDF as an image."""
     import win32com.client as win32
 
@@ -111,7 +71,7 @@ def excel_range_image(xlsx: Path, address: str, name: str, keep_rows: set[int] |
         setup.Zoom = False
         setup.FitToPagesWide = 1
         setup.FitToPagesTall = 1
-        setup.PrintHeadings = headings
+        setup.PrintHeadings = False
         setup.PrintGridlines = False
         sheet.Range(address).ExportAsFixedFormat(0, str(pdf_path), 0, False, False)
         workbook.Close(False)  # nothing is saved back
@@ -121,13 +81,14 @@ def excel_range_image(xlsx: Path, address: str, name: str, keep_rows: set[int] |
 
 
 def featured_invoice_image() -> Image.Image:
-    """The featured invoice, cropped to the printed part, with the four fields boxed."""
+    """The featured invoice, cropped to the printed part, with the four fields boxed in teal."""
     dpi = 200
     scale = dpi / 72
     pdf_path = SAMPLES / FEATURED
     page_image = pdf_page_image(pdf_path, dpi).convert("RGBA")
     overlay = Image.new("RGBA", page_image.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
+    teal = tuple(int(kit.TEAL[i:i + 2], 16) for i in (1, 3, 5))
     lowest = 0.0
     with pymupdf.open(pdf_path) as document:
         page = document[0]
@@ -138,104 +99,102 @@ def featured_invoice_image() -> Image.Image:
             rect = hits[0]
             lowest = max(lowest, rect.y1)
             box = ((rect.x0 - 5) * scale, (rect.y0 - 3) * scale, (rect.x1 + 5) * scale, (rect.y1 + 3) * scale)
-            draw.rounded_rectangle(box, radius=10, fill=ACCENT + (36,), outline=ACCENT + (255,), width=5)
+            draw.rounded_rectangle(box, radius=10, fill=teal + (40,), outline=teal + (255,), width=5)
     marked = Image.alpha_composite(page_image, overlay).convert("RGB")
-    cropped = marked.crop((0, 0, marked.width, round((lowest + 34) * scale)))
-    framed = Image.new("RGB", (cropped.width + 4, cropped.height + 4), "#C5CCD3")
-    framed.paste(cropped, (2, 2))
-    return framed
+    return marked.crop((0, 0, marked.width, round((lowest + 30) * scale)))
+
+
+def finish(card: Image.Image, caption: str, file_name: str) -> None:
+    path = kit.compose(card, caption, SHOTS / file_name)
+    small = kit.thumbnail(path, WORK)
+    print(f"  {path.name}  {kit.WIDTH}x{kit.HEIGHT}   (thumbnail: _work\\{small.name})")
 
 
 def shot_invoice_and_row() -> None:
+    """Before: the invoice, fields boxed. After: its one row in the output sheet."""
     row_number = 1 + sorted(p.name.lower() for p in SAMPLES.glob("*.pdf")).index(FEATURED) + 1
     row_strip = excel_range_image(OUTPUT_XLSX, "A1:E11", "row", keep_rows={row_number})
     invoice = featured_invoice_image()
 
-    width, height = content_size()
-    content = Image.new("RGB", (width, height), BACKGROUND)
-    arrow_height, gap = 64, 18
-    strip = fit(row_strip, width, 190)
-    invoice = fit(invoice, width, height - strip.height - arrow_height - 2 * gap)
-
-    y = (height - invoice.height - strip.height - arrow_height - 2 * gap) // 2
-    content.paste(invoice, ((width - invoice.width) // 2, y))
-    y += invoice.height + gap
-    draw = ImageDraw.Draw(content)
-    middle = width // 2
-    draw.rectangle((middle - 14, y, middle + 14, y + 30), fill=ACCENT)
-    draw.polygon(((middle - 44, y + 30), (middle + 44, y + 30), (middle, y + arrow_height)), fill=ACCENT)
-    y += arrow_height + gap
-    content.paste(strip, ((width - strip.width) // 2, y))
-    compose(content, "Invoice PDF in, spreadsheet row out", SHOTS / "1-invoice-to-row.png")
+    # Give the row strip the full card width, and the invoice the height that is left.
+    left, top, right, bottom = kit.inner(kit.new_card())
+    strip_height = row_strip.height * (right - left) / row_strip.width
+    usable = bottom - top - kit.ARROW_GAP - 2 * kit.LABEL_ROW
+    card, scales = kit.before_after(invoice, row_strip, orientation="vertical", share=(usable - strip_height) / usable,
+                                    before_note="a PDF invoice, as it arrives", after_note="one clean spreadsheet row")
+    print(f"  invoice drawn at {scales[0]:.2f}x, row at {scales[1]:.2f}x")
+    finish(card, "Invoice PDF in, spreadsheet row out", "1-invoice-to-row.png")
 
 
 def shot_output_sheet(summary_line: str) -> None:
-    sheet = excel_range_image(OUTPUT_XLSX, "A1:F11", "sheet", headings=True)
-    width, height = content_size()
-    content = Image.new("RGB", (width, height), BACKGROUND)
-    sheet = fit(sheet, width, height - 260)
-    callout_font = font("seguisb.ttf", 84)
-    gap = 70
-    block = sheet.height + gap + 100
-    y = (height - block) // 2
-    content.paste(sheet, ((width - sheet.width) // 2, y))
-    draw = ImageDraw.Draw(content)
-    draw.text((width // 2, y + sheet.height + gap + 50), summary_line.replace(", ", "  \u00b7  "),
-              font=callout_font, fill=STRIP, anchor="mm")
-    compose(content, "Unreadable invoices flagged, never guessed", SHOTS / "2-output-sheet-flagged-rows.png")
+    """The headline result, then the whole output sheet with its two flagged rows."""
+    sheet = excel_range_image(OUTPUT_XLSX, "A1:F11", "sheet")
+    card = kit.new_card()
+    left, top, right, bottom = kit.inner(card)
+    note = "Blank cells are blank on purpose. The Review column says why, so a person only checks those rows."
+    scaled, _ = kit.scale_to_fit(sheet, right - left, 10_000)
+    headline_height, note_height = 110, 40
+    spare = (bottom - top) - headline_height - scaled.height - note_height
+    gap = max(24, spare // 4)
+
+    y = top + gap // 2
+    kit.headline(card, summary_line.replace(", ", "  ·  "), card.width // 2, y + headline_height // 2, size=84)
+    y += headline_height + gap
+    box, scale = kit.place(card, sheet, (left, y, right, y + scaled.height), valign="top")
+    kit.text(ImageDraw.Draw(card), (card.width // 2, box[3] + gap + note_height // 2), note, 26, "regular", kit.SLATE, anchor="mm")
+    print(f"  sheet drawn at {scale:.2f}x")
+    finish(card, "Unreadable invoices flagged, never guessed", "2-output-sheet-flagged-rows.png")
 
 
 def page_thumbnail(file_name: str, width: int) -> Image.Image:
     """The printed top part of a sample invoice page, with a thin frame."""
-    page = pdf_page_image(SAMPLES / file_name, dpi=120)
-    page = page.crop((0, 0, page.width, round(page.height * 0.62)))
-    page = fit(page, width - 4, 10_000)
-    framed = Image.new("RGB", (page.width + 4, page.height + 4), "#C5CCD3")
-    framed.paste(page, (2, 2))
+    page = pdf_page_image(SAMPLES / file_name, dpi=150)
+    page = page.crop((0, 0, page.width, round(page.height * 0.75)))
+    page, _ = kit.scale_to_fit(page, width - 2, 10_000)
+    framed = Image.new("RGB", (page.width + 2, page.height + 2), kit.LINE)
+    framed.paste(page, (1, 1))
     return framed
 
 
-def shot_terminal(command: str, lines: list[str]) -> None:
+def shot_one_command(command: str, lines: list[str]) -> None:
     """A few of the sample invoices on top, the extractor's real output below."""
-    width, height = content_size()
-    content = Image.new("RGB", (width, height), BACKGROUND)
-    draw = ImageDraw.Draw(content)
+    card = kit.new_card()
+    draw = ImageDraw.Draw(card)
+    left, top, right, bottom = kit.inner(card)
+    width = right - left
 
     gap = 24
     thumb_width = (width - 3 * gap) // 4
     thumbs = [page_thumbnail(name, thumb_width) for name in THUMBNAILS]
-    label_font = font("segoeui.ttf", 24)
     label_height = 44
 
-    mono = font("consola.ttf", 36)
-    mono_bold = font("consolab.ttf", 36)
-    pad, step = 44, 60
-    terminal_height = pad + step + 14 + step * len(lines) + pad - 20
+    pad, step = 48, 56
+    details = lines[1:]
+    panel_height = pad + 48 + 24 + 108 + step * len(details) + pad - 10
+    block = thumbs[0].height + label_height + 28 + panel_height
+    y = top + max(0, (bottom - top - block) // 2)
 
-    y = (height - thumbs[0].height - label_height - gap - terminal_height) // 2
     for index, (name, thumb) in enumerate(zip(THUMBNAILS, thumbs)):
-        x = index * (thumb_width + gap)
-        content.paste(thumb, (x, y))
-        draw.text((x + thumb_width // 2, y + thumb.height + label_height // 2), name,
-                  font=label_font, fill="#4A5563", anchor="mm")
-    y += thumbs[0].height + label_height + gap
+        x = left + index * (thumb_width + gap)
+        card.paste(thumb, (x, y))
+        kit.text(draw, (x + thumb_width // 2, y + thumb.height + label_height // 2), name, 22, "regular", kit.SLATE, anchor="mm")
+    y += thumbs[0].height + label_height + 28
 
-    draw.rounded_rectangle((0, y, width - 1, y + terminal_height), radius=22, fill="#1E2430")
-    x, y = pad, y + pad
-    draw.text((x, y), "> " + command, font=mono, fill="#9FB3C8")
-    y += step + 14
-    for index, line in enumerate(lines):
-        if index == 0:
-            draw.text((x, y), line, font=mono_bold, fill="#FFFFFF")
-        elif "REVIEW" in line:
-            draw.text((x, y), line, font=mono, fill="#F5C26B")
-        else:
-            draw.text((x, y), line, font=mono, fill="#C9D4E0")
+    draw.rounded_rectangle((left, y, right, y + panel_height), radius=18, fill=kit.INK)
+    x, y = left + pad, y + pad
+    kit.text(draw, (x, y), "> " + command, 32, "regular", kit.LINE)
+    y += 48 + 24
+    kit.text(draw, (x, y), lines[0], 84, "semibold", kit.WHITE)
+    y += 108
+    for line in details:
+        review = "REVIEW" in line
+        kit.text(draw, (x + (30 if review else 0), y), " ".join(line.split()), 34, "regular",
+                 kit.AMBER_FILL if review else kit.LINE)
         y += step
-    longest = max(draw.textlength(text, font=mono_bold) for text in ["> " + command, *lines])
-    if x + longest > width - 30:
-        raise SystemExit("Terminal text is too wide for the picture")
-    compose(content, "One command reads the whole folder", SHOTS / "3-one-command-summary.png")
+    widest = max(kit.text_width(lines[0], 84, "semibold"), *(kit.text_width(" ".join(l.split()), 34) + 30 for l in details))
+    if x + widest > right - pad:
+        raise SystemExit("The run output is too wide for the picture")
+    finish(card, "One command reads the whole folder", "3-one-command-summary.png")
 
 
 def main() -> int:
@@ -243,11 +202,11 @@ def main() -> int:
     command = ["extract.py", "samples", "output\\invoices.xlsx"]
     run = subprocess.run([sys.executable, *command], cwd=ROOT, capture_output=True, text=True, check=True)
     lines = run.stdout.rstrip().splitlines()
-    print("Extractor said:", lines[0])
+    print(f"showcase kit {kit.__version__}. Extractor said: {lines[0]}")
     print("Writing screenshots:")
     shot_invoice_and_row()
     shot_output_sheet(lines[0])
-    shot_terminal("python " + " ".join(command), lines)
+    shot_one_command("python " + " ".join(command), lines)
     return 0
 
 
