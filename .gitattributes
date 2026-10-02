@@ -1,0 +1,6 @@
+# The sample PDFs are plain ASCII inside, so git would otherwise treat them as text
+# and rewrite their line endings on checkout, which breaks a PDF.
+* text=auto
+*.pdf binary
+*.png binary
+*.xlsx binary
