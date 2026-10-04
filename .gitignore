@@ -9,7 +9,9 @@ __pycache__/
 .env
 *.env
 credentials*
-token*
+token
+token.*
+*.token
 
 # Regenerated on every run
 output/
