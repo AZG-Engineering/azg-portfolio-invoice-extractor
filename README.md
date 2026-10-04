@@ -173,3 +173,6 @@ Kept in this repository, for the screenshots only:
 | AZG showcase kit | 1.1.0 | AZG Engineering's own | `tools\showcase.py`, an exact copy of `Products\showcase-kit\showcase.py` |
 
 No system font is drawn into the images.
+
+## Licence
+Copyright © 2026 Azimuth Group LLC. All rights reserved. Published as a work sample; no licence to reuse it is granted. The Inter font in `tools\fonts\` is under the SIL Open Font License 1.1 (`tools\fonts\OFL.txt`).
