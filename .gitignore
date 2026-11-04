@@ -22,3 +22,6 @@ screenshots/_work/
 
 # Excel lock files
 ~$*
+
+# Local tooling configuration
+.claude/
